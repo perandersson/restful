@@ -32,8 +32,13 @@ $getAllUsers = function ($args) {
 };
 
 $addUser = function ($args, $body) {
+    // The following JSON format is assumed:
+    // { "id" : 1, "name" : "name here", "age": 123 }
+
     $id = $body->{"id"};
-    return array("id" => $id);
+    $name = $body->{"name"};
+    $age = $body->{"age"};
+    return array("id" => $id, "name" => $name, "age" => $age);
 };
 
 //
