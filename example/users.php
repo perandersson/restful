@@ -12,7 +12,7 @@ $restful = Restful::fromHttpRequest();
 //
 
 $getUser = function ($args) {
-    // Notice that the key in the args object is "id", which is the same as specified in the path for this function
+    // Notice that the key on the args object is "id". It is the same as specified as part of the path for this function
     $id = (int)$args["id"];
 
     // Simulate database with simple if-statements
