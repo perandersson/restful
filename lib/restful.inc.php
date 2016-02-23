@@ -2,6 +2,57 @@
 require_once "utils.inc.php";
 
 /**
+ * Class representing a REST result
+ */
+class RestResult
+{
+    private $json;
+    private $responseCode;
+
+    function __construct($object, $responseCode)
+    {
+        $this->json = Utils::safeJsonEncode($object);
+        $this->responseCode = $responseCode;
+    }
+
+    function handleResult()
+    {
+        if ($this->json != null) {
+            header('Content-Type: application/json');
+            header('Cache-Control: no-cache, must-revalidate');
+        }
+        // TODO: header("Location: path/to/resource");
+        http_response_code($this->responseCode);
+        print($this->json);
+    }
+}
+
+function created($result)
+{
+    return new RestResult($result, 201);
+}
+
+function not_found($result = null)
+{
+    return new RestResult($result, 404);
+}
+
+function conflict($result = null)
+{
+    return new RestResult($result, 409);
+}
+
+function ok($result)
+{
+    return new RestResult($result, 200);
+}
+
+function no_content($result = null)
+{
+    return new RestResult($result, 204);
+}
+
+/**
  * Base class for all request mappings registrable by the Restful service.
  *
  * Class RequestMapping
@@ -37,6 +88,11 @@ abstract class RequestMapping
         return false;
     }
 
+    /**
+     * @param $requestParts
+     * @param $postData
+     * @return RestResult
+     */
     function handle($requestParts, $postData)
     {
         $args = $this->extractArgsFromRequest($requestParts);
@@ -80,46 +136,30 @@ abstract class RequestMapping
         return $args;
     }
 
+    /**
+     * @param $args
+     * @param $body
+     * @param $fn
+     * @return RestResult
+     */
     abstract protected function handleRequest($args, $body, $fn);
-
-    abstract public function successCode();
 }
 
-class PostMapping extends RequestMapping
+class RequestMappingWithBody extends RequestMapping
 {
-    function __construct($path, $fn)
-    {
-        parent::__construct($path, $fn, "POST");
-    }
-
     protected function handleRequest($args, $body, $fn)
     {
         $result = $fn($args, $body);
         return $result;
     }
-
-    public function successCode()
-    {
-        return 201;
-    }
 }
 
-class GetMapping extends RequestMapping
+class RequestMappingWithoutBody extends RequestMapping
 {
-    function __construct($path, $fn)
-    {
-        parent::__construct($path, $fn, "GET");
-    }
-
     protected function handleRequest($args, $body, $fn)
     {
         $result = $fn($args);
         return $result;
-    }
-
-    public function successCode()
-    {
-        return 200;
     }
 }
 
@@ -132,7 +172,7 @@ class GetMapping extends RequestMapping
  */
 function post($path, $fn)
 {
-    return new PostMapping($path, $fn);
+    return new RequestMappingWithBody($path, $fn, "POST");
 }
 
 /**
@@ -144,7 +184,43 @@ function post($path, $fn)
  */
 function get($path, $fn)
 {
-    return new GetMapping($path, $fn);
+    return new RequestMappingWithoutBody($path, $fn, "GET");
+}
+
+/**
+ * Syntactic sugar used when registering a resource accepting PUT requests
+ *
+ * @param $path string The path to the resource
+ * @param $fn Closure The function
+ * @return RequestMapping
+ */
+function put($path, $fn)
+{
+    return new RequestMappingWithBody($path, $fn, "PUT");
+}
+
+/**
+ * Syntactic sugar used when registering a resource accepting PATCH requests
+ *
+ * @param $path string The path to the resource
+ * @param $fn Closure The function
+ * @return RequestMapping
+ */
+function patch($path, $fn)
+{
+    return new RequestMappingWithBody($path, $fn, "PATCH");
+}
+
+/**
+ * Syntactic sugar used when registering a resource accepting DELETE requests
+ *
+ * @param $path string The path to the resource
+ * @param $fn Closure The function
+ * @return RequestMapping
+ */
+function delete($path, $fn)
+{
+    return new RequestMappingWithoutBody($path, $fn, "DELETE");
 }
 
 class Restful
@@ -164,35 +240,9 @@ class Restful
             $this->requestContentType = Utils::getOrElse($requestContentType, "");
         }
         $body = file_get_contents('php://input');
-        $this->postData = Restful::getJsonOrEmpty($body);
+        $this->postData = Utils::safeJsonDecode($body);
         $this->pathParts = Utils::trimSplit($pathInfo, "/");
         $this->pathPartsCount = count($this->pathParts);
-    }
-
-    /**
-     * @param $resource RequestMapping
-     * @param $result object Any object that's serializable to JSON
-     */
-    private function handleResult($resource, $result)
-    {
-        if ($result == null) {
-            http_response_code(404);
-        } else {
-            header('Content-Type: application/json');
-            header('Cache-Control: no-cache, must-revalidate');
-            http_response_code($resource->successCode());
-
-            $json_result = json_encode($result);
-            print($json_result);
-        }
-    }
-
-    static function getJsonOrEmpty($data)
-    {
-        if ($data == null || $data == "")
-            $data = "{}";
-
-        return json_decode($data);
     }
 
     /**
@@ -217,8 +267,8 @@ class Restful
 
         foreach ($resources as $resource) {
             if ($resource->isSupported($this->method, $this->pathParts)) {
-                $result = $resource->handle($this->pathParts, $this->postData);
-                $this->handleResult($resource, $result);
+                $restResult = $resource->handle($this->pathParts, $this->postData);
+                $restResult->handleResult();
                 return;
             }
         }

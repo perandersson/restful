@@ -23,4 +23,19 @@ class Utils
         else
             return explode("/", $result);
     }
+
+    static function safeJsonDecode($json)
+    {
+        if ($json == null || $json == "")
+            $json = "{}";
+
+        return json_decode($json);
+    }
+
+    static function safeJsonEncode($object)
+    {
+        if ($object == null)
+            return null;
+        return json_encode($object);
+    }
 }

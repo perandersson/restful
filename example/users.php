@@ -16,19 +16,23 @@ $getUser = function ($args) {
     $id = (int)$args["id"];
 
     // Simulate database with simple if-statements
+    $result = null;
     if ($id == 1) {
-        return array("id" => 1, "name" => "John Doe", "age" => 21);
+        $result = array("id" => 1, "name" => "John Doe", "age" => 21);
     } else if ($id == 2) {
-        return array("id" => 2, "name" => "Jane Doe", "age" => 23);
+        $result = array("id" => 2, "name" => "Jane Doe", "age" => 23);
     }
-    return null;
+
+    if ($result != null)
+        return ok($result);
+    return not_found();
 };
 
 $getAllUsers = function ($args) {
-    return array(
+    return ok(array(
         array("id" => 1, "name" => "John Doe", "age" => 21),
         array("id" => 2, "name" => "Jane Doe", "age" => 23)
-    );
+    ));
 };
 
 $addUser = function ($args, $body) {
@@ -38,7 +42,13 @@ $addUser = function ($args, $body) {
     $id = $body->{"id"};
     $name = $body->{"name"};
     $age = $body->{"age"};
-    return array("id" => $id, "name" => $name, "age" => $age);
+    return created(array("id" => $id, "name" => $name, "age" => $age));
+};
+
+$removeUser = function($args) {
+    $id = (int)$args["id"];
+    // Delete user and then return the deleted object
+    return ok(array("id" => $id, "name" => "John Doe", "age" => 21));
 };
 
 //
@@ -48,5 +58,6 @@ $addUser = function ($args, $body) {
 $restful->register(array(
     get("/{id}", $getUser),
     get("/", $getAllUsers),
-    post("/", $addUser)
+    post("/", $addUser),
+    delete("/{id]", $removeUser)
 ));
