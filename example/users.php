@@ -59,5 +59,5 @@ $restful->register(array(
     get("/{id}", $getUser),
     get("/", $getAllUsers),
     post("/", $addUser),
-    delete("/{id]", $removeUser)
+    delete("/{id}", $removeUser)
 ));
